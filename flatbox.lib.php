@@ -1,15 +1,49 @@
 <?php   
 
-### Flat Box                  ###
-### FlatBox.inc.php           ###
+######################################################################
+#/------------------------------------------------------------------\#
+#|           ____               _____   __    __                    |#
+#|           |__   |      /\      |    |  |  |  |  \ /              |#
+#|           |     |     /--\     |    |-{   |  |   X               |#
+#|           |     |__  /    \    |    |__|  |__|  / \              |#
+#|                                                                  |#
+#\------------------------------------------------------------------/#
+######################################################################
+
+
+### flat_box.php              ###
 
 ### Copyright:                ###
 ### Thomas Schmieder          ###
 ### Dennis Riehle             ###
 
-### Stand 08.04.2005 17:06:00 ###
-### Version: 0.2.1 Beta       ###
+### Stand 10.07.2005 15:04:13 ###
+### Version 0.2.2             ###
 
+
+######################################################################
+#/------------------------------------------------------------------\#
+#|                            Changelog                             |#
+#\------------------------------------------------------------------/#
+######################################################################
+
+/*
+
+- get_microtime verändert, dass in PHP5 der Workaround nicht gebraucht wird
+- Beschreibung zu get_microtime erstellt
+- Beschreibung zu strip erweitert
+- In allen Beschreibungen die Parameter entfernt, wozu braucht man die da?
+  Es gibt doch schließlich eine Doku ;-)
+- ASCII Flatbox Schrifzug am Anfang eingefügt
+- Konstanten PRINT_NOTICES, PRINT_WARNINGS und PRINT_FAILES eingeführt
+- Funktion get_error_description angepasst, sodass sich über die drei oben
+  genannten Konstanten die Ausgabe von Fehlermeldungen steuern lässt.
+- Alle Funktion sofern angepasst, dass diese nicht mehr direkt den Errorcode
+  zurück liefern, sondern dass der Errorcode erst durch get_error_description
+  gejagt wird und dann zurückgegeben wird. So lässt sich mit den obigen 
+  Konstanten die Fehlerausgabe aller Funktion kontrollieren.
+
+*/
 
 ######################################################################
 #/------------------------------------------------------------------\#
@@ -21,26 +55,32 @@
 
 Dauerfunktionen:
 ================
-- get_error_description($code)        => Liefert eine Beschreibung zu dem
-                                         Fehlercode $code zurück.
+- get_error_description               => Liefert die Beschreibungen zu einem
+									     Fehler, je nach definierten Konstanten,
+										 werden diese ausgegeben oder nicht.
 
-- get_microtime()                     => microtime() für PHP < 5
+- get_microtime                       => Diese Funktion liefert einen Timestamp
+										 zurück, der die aktuelle Zeit in Sekunden
+										 mit 4 Nachkommastellen angibt.
+										 Was in PHP5 durch microtime(true); erledigt
+										 werden kann, kann in PHP4 nur mit einem
+										 Workaround erzielt werden.
 
-- get_time_s()                        => Liefert die aktuelle Zeit zurück, 
+- get_time_s                          => Liefert die aktuelle Zeit zurück, 
                                          in einem speziallen Timestamp:
 										 JahrMonatTagStundeMinuteSekunde.Millisekunden
 
-- strip($data)                        => Rekursive Entfernung der 
-                                         Maskierungs-Backslashes in $data als Array
+- strip                               => Rekursive Entfernung der 
+                                         Maskierungs-Backslashes in $data, sofern
+										 magic_quotes aktiviert sind
 
-- flat_open_lock($filepath,$lockmode) => Öffnet $filename und nutzt als 
+- flat_open_lock				      => Öffnet $filename und nutzt als 
                                          Sperrmethode $lockmode
 
 
 Einmalige Funktionen:
 =====================
-- flat_file_create($filepath)         => Erstellt die Datei $filepath und legt
-                                         Grundsatzinformationen an
+- flat_file_create			          => Erstellt die Datei $filepath
 
 - flat_file_alter                     => Ändert die Dateien, wenn z.B. ein 
                                          Feld dazukommt
@@ -49,17 +89,16 @@ Einmalige Funktionen:
 Grundfunktionen (BIOS):
 =======================
 - flat_rec_insert                     => Schreibt einen neuen Datensatz in 
-                                         den Flatfile
+                                         die angegebene Datei
+
+- flat_rec_select                     => holt eine Recordliste aus 
+                                         einem File
 
 - flat_rec_update                     => Erneuert Datensätze in $filepath 
                                          oder fügt sie hinzu, wenn die ID noch
                                          nicht vorhanden war.
 
-- flat_rec_delete($filepath,$_recList) =>Löscht die Datensätze aus $_recList
-                                         in $filename
-
-- flat_rec_select                     => holt eine Liste aller in einem Flatfile
-                                         enthaltenen Datensätze
+- flat_rec_delete					  => Löscht die Datensätze in $filename
 
 
 Anzeigefunktionen:
@@ -73,7 +112,8 @@ Anzeigefunktionen:
 - flat_rec_make_detail                => Erzeugt die HTML Ausgabe für 
                                          einen angeforderten Datenksatz
 
-- flat_rec_search($string)            => Sucht je nach Auswahl im Archiv oder 
+
+- flat_rec_search                     => Sucht je nach Auswahl im Archiv oder 
                                          aktuell.dat nach String
 
 
@@ -82,7 +122,7 @@ Backup- und Archivierungsfunktionen:
 - flat_rec_copy                       => Kopiert eine bestimmte Menge an 
                                          Datensätzen, wird zur Archivierung genutzt
 
-- flat_file_backup($filepath,$backuppath,$compress) => Erstellt ein Backup der
+- flat_file_backup                    => Erstellt ein Backup der
                                          Datei $filepath am Ort $backuppath, 
 										 zusätzlich kann ein Komprimierungscode 
 										 angegeben werden.
@@ -93,64 +133,105 @@ Backup- und Archivierungsfunktionen:
 #--------------------------------------------------------------------
 # includes und Konstanten
 #--------------------------------------------------------------------
-define ('FLAT_MAXFILESIZE',1000000);      # Maximale erlaubte Größe eines
-                                          # Flatfiles in Byte
-define ('PRINT_ERRORS', true);            # Anzeige von Fehlermeldungen
-                                          # durch get_error_description()
+define ('FLAT_MAXFILESIZE', 1000000);
+define ('PRINT_NOTICES',    true   );
+define ('PRINT_WARNINGS',   true   );
+define ('PRINT_FAILES',     true   );
 
 
 #--------------------------------------------------------------------
 # Dauerfunktionen
 #--------------------------------------------------------------------
-function get_error_description($code, $print_errors = PRINT_ERRORS)
+function get_error_description($errnr, $returndescr = false)
 {
-  $_errorcode = array(
-		//Daten fehlerfrei verarbeitet = 0
-		 0 => "No errors, function was successfully carried out.",
-		
-		//Low-Level-Fehler, 1 - 10
-   		 2 => "<b>Low-Level Error:</b> Flat Box wasn't able to find the selected file.",
-   		 3 => "<b>Low-Level Error:</b> Selected file already exists.",
-   		 4 => "<b>Low-Level Error:</b> There are no data records, selected file is empty.",
-   		 5 => "<b>Low-Level Error:</b> Authorisation Error on low-level section.",
-   		 8 => "<b>Low-Level Error:</b> Flat Box wasn't able to write in the file.",
-		10 => "<b>Low-Level Error:</b> Maximum allowable filesize is transgressed.",
-		
-		//Datenfehler, 11 - 49
-		11 => "<b>Data Error:</b> File format doesn't match.",
-		12 => "<b>Data Error:</b> Still erroneous data records in ['denied'].",
-		13 => "<b>Data Error:</b> There are still some data records that couldn't be worked up.",
-		14 => "<b>Data Error:</b> There are no data records, but the file format is OK.",
-		
-		//Berechtigungsfehler der Userverwaltung, 50++
-		 50 => "<b>Authorisation Error:</b> ...",
+  //Notiz-Meldungen, 0 und 100+
+  $_notices = array(
+  		 0 => "No errors, function was successfully carried out."
+	);
+  //Warn-Meldungen, 1 bis 49
+  $_warnings = array(
+  		 2 => "Low-Level Error: Flat Box wasn't able to find the selected file.",
+   		 3 => "Low-Level Error: Selected file already exists.",
+   		 4 => "Low-Level Error: There are no data records, selected file is empty.",
+   		 5 => "Low-Level Error: Authorisation Error on low-level section.",
+   		 8 => "Low-Level Error: Flat Box wasn't able to write in the file.",
+		10 => "Low-Level Error: Maximum allowable filesize is transgressed.",
+		11 => "Data Error: File format doesn't match.",
+		12 => "Data Error: Still erroneous data records in ['denied'].",
+		13 => "Data Error: There are still some data records that couldn't be worked up.",
+		14 => "Data Error: There are no data records, but the file format is OK."
+	);
+  //Fehler-Meldungen in der Userverwaltung, 50 bis 99
+  $_failes = array(
+  		50 => "Authorisation Error, no further information avaliable."
 	);
   
-  if(isset($_errorcode[$code]) AND $print_errors) 
+  //Wenn keine Error Nummer übergeben wurde, abbrechen
+  if(!is_numeric($errnr)) return false;
+  //Prüfen, ob es sich um eine existierende Notice-Meldung handelt
+  elseif($errnnr == 0 OR $errnr >= 100 AND isset($_notices[$errnr]))
   {
-  	echo $_errorcode[$code];
+  	$message = $_notices[$errnr];
+	//Wenn entsprechend definiert, Meldung ausgeben
+	if(defined('PRINT_NOTICES') AND PRINT_NOTICES)
+	{
+	  echo "<b>Notice:</b> " . $message . "<br /><br />\n";
+	}
   }
-  elseif(isset($_errorcode[$code]) AND !$print_errors)
+  //Prüfen, ob es sich um eine existierende Warning-Meldung handelt
+  elseif($errnr >= 1 AND $errnr <= 49 AND isset($_warnings[$errnr]))
   {
-    return $_errorcode[$code];
+  	$message = $_warnings[$errnr];
+	//Wenn entsprechend definiert, Meldung ausgeben
+	if(defined('PRINT_WARNINGS') AND PRINT_WARNINGS)
+	{
+	  echo "<b>Warning:</b> " . $message . "<br /><br />\n";
+	}
   }
-  elseif(!isset($_errorcode[$code]) AND $print_errors)
+  //Prüfen, ob es sich um eine existierende Fehler-Meldung handelt
+  elseif($errnr >= 50 AND $errnr <= 99 AND isset($_failes[$errnr]))
   {
-    echo "An unknown error occured, please refer to Thomas Schmieder or Dennis Riehle to"
-	     . " get more information.";
+  	$message = $_failes[$errnr];
+	//Wenn entsprechend definiert, Meldung ausgeben
+	if(defined('PRINT_WARNINGS') AND PRINT_WARNINGS)
+	{
+	  echo "<b>Warning:</b> " . $message . "<br /><br />\n";
+	}
   }
-  else  //elseif(!isset($_errorcode[$code]) AND !$print_errors)
+  //Ansonsten ist der Errorcode unbekannt
+  else
   {
-    return "An unknown error occured, please refer to Thomas Schmieder or Dennis Riehle to"
-	       . " get more information.";
+  	$message = "An unknown error occured, please refer to Thomas Schmieder or "
+			 . "Dennis Riehle to get more information about error " . $errnr;
+	echo "<b>Fatal Error:</b> " . $message . "<br /><br />\n";
+  }
+  if($returndescr)
+  {
+  	return $message;
+  }
+  else
+  {
+  	return $errnr;
   }
 }
 
 #--------------------------------------------------------------------
 function get_microtime()
 {
-  list($usec, $sec) = explode(" ",microtime());
-  return ((float)$usec + (float)$sec); 
+  //Wir eine PHP Version kleiner 5 verwendet?
+  if(version_compare(phpversion(), "5", "<"))
+  {
+	//Dann müssen wir uns die Zahl selber zusammenstellen
+	list($usec, $sec) = explode(" ",microtime());
+	$microtime = (float)$usec + (float)$sec;
+  }
+  else
+  {
+    //PHP5 kennt einen opt. Parameter für microtime(),
+	//der das bereits alles erledigt
+	$microtime = microtime(true);
+  }
+  return $microtime;
 }
 
 #--------------------------------------------------------------------
@@ -188,7 +269,7 @@ function strip($data)
 
 #--------------------------------------------------------------------
 function flat_open_lock($filepath,$lockmode)
-{
+{  
   # Lockdatei öffnen oder anlegen
   for ($x=0;$x<5;$x++)
   {
@@ -210,7 +291,6 @@ function flat_open_lock($filepath,$lockmode)
 }
 
 
-
 #--------------------------------------------------------------------
 # Einmalige Funktionen
 #--------------------------------------------------------------------
@@ -218,7 +298,7 @@ function flat_file_create($filepath)
 {
  clearstatcache();                     ## Statusbuffer rücksetzen
  
- if(file_exists($filepath)) return 3;  ## Datei existiert schon 
+ if(file_exists($filepath)) return get_error_description(3);  ## Datei existiert schon 
  
  $fp = flat_open_lock($filepath,LOCK_EX);
  
@@ -229,7 +309,7 @@ function flat_file_create($filepath)
    {                                   ## weil zwischen Handle-Beschaffung 
                                        ## und Lock Zeit vergeht
      fclose($fp); 
-     return 3;                         ## Datei existiert schon
+     return get_error_description(3);  ## Datei existiert schon
    }
    $time_s = get_time_s();
    $time_u = time();
@@ -248,9 +328,9 @@ function flat_file_create($filepath)
    fwrite($fp,$_file_packed,strlen($_file_packed));
    fclose($fp);
    
-   return 0;    ##Code für kein Fehler
+   return get_error_description(0);    ##Code für kein Fehler
  }
- else return 5; ##Code für Datei nicht geöffnet 
+ else return get_error_description(5); ##Code für Datei nicht geöffnet 
 }
 
 #--------------------------------------------------------------------
@@ -271,29 +351,21 @@ function flat_rec_insert($filepath,&$_recdata)
   
   //Datei öffnen und locken, bei Fehler abrechen
   $fp = flat_open_lock($filepath,LOCK_EX);
-  if (!$fp) return 5; ## Datei konnte nicht gesperrt werden
+  if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
   // maximale Dateigröße prüfen
   $filesize = filesize($filepath);
-  
   if ($filesize > FLAT_MAXFILESIZE)
   {
     fclose($fp);
-    return 10;  ## max. zulässige Dateigröße überschritten
+    return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
-  
-  if (!$filesize)  ## möglicherw. wird die Funktion das erste mal aufgerufen,
-                   ## dann wäre $filesize 0 und fread() gäbe einen Fehler aus
-  {
-    $_file = array();
-  }
-  else
-  {
-    //Datei entpacken
-    fseek($fp,0,SEEK_SET);
-    $_file_packed = fread($fp,$filesize);
-    $_file = unserialize($_file_packed);
-  } 
+       
+  //Datei entpacken
+  fseek($fp,0,SEEK_SET);
+  $_file_packed = fread($fp,$filesize);
+  $_file = unserialize($_file_packed);
+     
   
   //Zeitstempel erzeugen und merken
   $time_s = get_time_s();
@@ -321,18 +393,18 @@ function flat_rec_insert($filepath,&$_recdata)
         !is_array($_file['data']))
     {
       fclose($fp);
-      return 11;           ## Dateiformat passt nicht
+      return get_error_description(11);           ## Dateiformat passt nicht
     }
+
+    if (!empty($_recdata['denied']) or !empty($_recdata['meta'])) 
+    {
+      fclose($fp);                       ## noch fehlerhafte Datensätze im Array
+      return get_error_description(12);                         ## oder noch Ergebnisdaten vorhanden 
+    }
+    $_recdata['meta']   = array();       ## es könnten ja noch leere Strings sein
+    $_recdata['denied'] = array();
   }
-  
-  if (!empty($_recdata['denied']) or !empty($_recdata['meta'])) 
-  {
-    fclose($fp);                       ## noch fehlerhafte Datensätze im Array
-    return 12;                         ## oder noch Ergebnisdaten vorhanden 
-  }
-  $_recdata['meta']   = array();       ## es könnten ja noch leere Strings sein
-  $_recdata['denied'] = array(); 
-  
+     
   $_recdata['meta']['rec_inserted'] = 0;  ## Anzahl der fehlerfrei updated Records
   $_recdata['meta']['rec_denied']  = 0;   ## Anzahl der abgelehnten Records
 
@@ -380,16 +452,16 @@ function flat_rec_insert($filepath,&$_recdata)
   //Rückgabewert der Funktion
   if (!$writeok)
   {
-    return 8;     # Fehler beim Schreiben der Daten;
+    return get_error_description(8);     # Fehler beim Schreiben der Daten;
   }  
 
   if (count($_recdata['denied'])==0)
   {
-    return 0;       # kein Fehler aufgetreten, alle Sätze verarbeitet.
+    return get_error_description(0);       # kein Fehler aufgetreten, alle Sätze verarbeitet.
   }
   else
   {
-    return 13;      # nicht alle Sätze konnten verarbeitet werden
+    return get_error_description(13);      # nicht alle Sätze konnten verarbeitet werden
   }
 }
 
@@ -402,14 +474,14 @@ function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
   //Datei öffnen und locken, bei Fehler abrechen
   $fp = flat_open_lock($filepath,LOCK_SH);  
   
-  if (!$fp) return 5;           ## Datei konnte nicht gesperrt werden
+  if (!$fp) return get_error_description(5);           ## Datei konnte nicht gesperrt werden
   
   // maximale Dateigröße prüfen
   $filesize = filesize($filepath);
   if ($filesize > FLAT_MAXFILESIZE + 5000)
   {
     fclose($fp);
-    return 10;  ## max. zulässige Dateigröße überschritten
+    return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
        
   //Datei entpacken
@@ -421,7 +493,7 @@ function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
   //abbrechen, falls $_file leer ist
   if(empty($_file) or ($filesize == 0))
   {
-    return 4;
+    return get_error_description(4);
   }
   else
   {
@@ -432,7 +504,7 @@ function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
         !isset($_file['meta']['amount']) or 
         !is_array($_file['data']))
     {
-      return 11;           ## Dateiformat passt nicht
+      return get_error_description(11);           ## Dateiformat passt nicht
     }
   
      
@@ -462,11 +534,11 @@ function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
 
   if ($_recdata['meta']['rec_denied'] == 0)              ## alle Sätze erlaubt
   {
-    return 0;       # kein Fehler aufgetreten, alle Sätze verarbeitet.
+    return get_error_description(0);       # kein Fehler aufgetreten, alle Sätze verarbeitet.
   }
   else
   {
-    return 13;      # nicht alle Sätze konnten verarbeitet werden
+    return get_error_description(13);      # nicht alle Sätze konnten verarbeitet werden
   }
 }
 
@@ -478,16 +550,16 @@ function flat_rec_update($filepath,&$_recdata)
   
   //Datei öffnen und locken, bei Fehler abrechen
   $fp = flat_open_lock($filepath,LOCK_EX);
-  if (!$fp) return 5; ## Datei konnte nicht gesperrt werden
+  if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
   // maximale Dateigröße prüfen
   $filesize = filesize($filepath);
   if ($filesize > FLAT_MAXFILESIZE)
   {
     fclose($fp);
-    return 10;  ## max. zulässige Dateigröße überschritten
+    return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
-       
+  
   //Datei entpacken
   fseek($fp,0,SEEK_SET);
   $_file_packed = fread($fp,$filesize);
@@ -520,13 +592,13 @@ function flat_rec_update($filepath,&$_recdata)
         !is_array($_file['data']))
     {
       fclose($fp);
-      return 11;           ## Dateiformat passt nicht
+      return get_error_description(11);           ## Dateiformat passt nicht
     }
 
     if (!empty($_recdata['denied']) or !empty($_recdata['meta'])) 
     {
       fclose($fp);                       ## noch fehlerhafte Datensätze im Array
-      return 12;                         ## oder noch Ergebnisdaten vorhanden 
+      return get_error_description(12);                         ## oder noch Ergebnisdaten vorhanden 
     }
     $_recdata['meta']   = array();       ## es könnten ja noch leere Strings sein
     $_recdata['denied'] = array();
@@ -590,15 +662,15 @@ function flat_rec_update($filepath,&$_recdata)
      
   //Rückgabewert der Funktion
 
-  if (!$writeok) return 8; # Fehler beim Schreiben;
+  if (!$writeok) return get_error_description(8); # Fehler beim Schreiben;
 
   if (count($_recdata['denied'])==0)
   {
-    return 0;       # kein Fehler aufgetreten, alle Sätze verarbeitet.
+    return get_error_description(0);       # kein Fehler aufgetreten, alle Sätze verarbeitet.
   }
   else
   {
-    return 13;      # nicht alle Sätze konnten verarbeitet werden
+    return get_error_description(13);      # nicht alle Sätze konnten verarbeitet werden
   }
 }
 
@@ -611,17 +683,16 @@ function flat_rec_delete($filepath,&$_recdata)
   
   //Datei öffnen und locken, bei Fehler abrechen
   $fp = flat_open_lock($filepath,LOCK_EX);
-  if (!$fp) return 5; ## Datei konnte nicht gesperrt werden
+  if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
   // maximale Dateigröße prüfen
   $filesize = filesize($filepath);
-  
   
   // maximale Dateigröße zuzüglich Sicherheitszuschlag für LESEN
   if ($filesize > FLAT_MAXFILESIZE + 5000)
   {                             
     fclose($fp);
-    return 10;  ## max. zulässige Dateigröße überschritten
+    return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
     
   //Datei entpacken
@@ -635,7 +706,7 @@ function flat_rec_delete($filepath,&$_recdata)
   //Prüfen, ob $_file Daten enthält
   if(empty($_file))
   {
-    return 4;              ## Keine Daten vorhanden
+    return get_error_description(4);              ## Keine Daten vorhanden
   }
   else
   {
@@ -647,13 +718,13 @@ function flat_rec_delete($filepath,&$_recdata)
         !is_array($_file['data']))
     {
       fclose($fp);
-      return 11;           ## Dateiformat passt nicht
+      return get_error_description(11);           ## Dateiformat passt nicht
     }
 
     if (!empty($_recdata['denied']) or !empty($_recdata['meta'])) 
     {
       fclose($fp);
-      return 12;           ## noch fehlerhafte Datensätze im Array
+      return get_error_description(12);           ## noch fehlerhafte Datensätze im Array
     }                      ## oder noch falsche Ergbnisdaten
     $_recdata['meta']   = array();
     $_recdata['denied'] = array();
@@ -705,15 +776,15 @@ function flat_rec_delete($filepath,&$_recdata)
      
   //Rückgabewert der Funktion
 
-  if (!$writeok) return 8;   ## Fehler beim Schreiben;
+  if (!$writeok) return get_error_description(8);   ## Fehler beim Schreiben;
 
   if (count($_recdata['denied'])==0)
   {
-    return 0;       # kein Fehler aufgetreten, alle Sätze wurden gelöscht.
+    return get_error_description(0);       # kein Fehler aufgetreten, alle Sätze gelöscht wurden.
   }
   else
   {
-    return 13;      # nicht alle Sätze konnten verarbeitet werden
+    return get_error_description(13);      # nicht alle Sätze konnten verarbeitet werden
   }
 }
 
@@ -797,8 +868,8 @@ function flat_rec_get_listdata($filepath,&$_showdata,&$nextID,&$lastID,$startID=
   }
   
   //Rückgabewert feststellen
-  if(empty($_showdata)) return 4; //Keine Daten vorhanden
-  else                  return 0; //Alles OK ;-)
+  if(empty($_showdata)) return get_error_description(4); //Keine Daten vorhanden
+  else                  return get_error_description(0); //Alles OK ;-)
 }
 
 #--------------------------------------------------------------------
@@ -894,7 +965,7 @@ function flat_file_backup($filepath,$backuppath,$compress=0)
   
   //Datei öffnen und locken, bei Fehler abrechen
   $fp = flat_open_lock($filepath,LOCK_EX);
-  if (!$fp) return 5; ## Datei konnte nicht gesperrt werden
+  if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
   $filesize = filesize($filepath);
 
@@ -902,7 +973,7 @@ function flat_file_backup($filepath,$backuppath,$compress=0)
   if ($filesize > FLAT_MAXFILESIZE+5000) 
   {                             
     fclose($fp);
-    return 10;  ## max. zulässige Dateigröße überschritten
+    return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
   
   //Datei einlesen
@@ -931,25 +1002,22 @@ function flat_file_backup($filepath,$backuppath,$compress=0)
     
     
   $fp = flat_open_lock($backuppath,LOCK_EX);
-  if (!$fp) return 5; ## Datei konnte nicht gesperrt werden
+  if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
   // prüfen, ob Ausgabefile schon Daten enthielt.
   $filesize = filesize($backuppath);
   if ($filesize > 0) 
   {
     fclose($fp);
-    return 3;  ## File existiert schon
+    return get_error_description(3);  ## File existiert schon
   }
 
   fwrite($fp,$_file_packed,strlen($_file_packed));
   fclose($fp);
   
-  return 0;  ## Kein Fehler aufgetreten
+  return get_error_description(0);  ## Kein Fehler aufgetreten
 }
 
+#--------------------------------------------------------------------
 
-/*
-	ENDE
-*/
-
-?>
+### EOF ###

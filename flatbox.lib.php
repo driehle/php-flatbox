@@ -17,8 +17,8 @@
 ### Thomas Schmieder          ###
 ### Dennis Riehle             ###
 
-### Stand 10.07.2005 15:04:13 ###
-### Version 0.2.2             ###
+### Stand 13.07.2005 21:39:52 ###
+### Version 0.2.3             ###
 
 
 ######################################################################
@@ -29,19 +29,13 @@
 
 /*
 
-- get_microtime verändert, dass in PHP5 der Workaround nicht gebraucht wird
-- Beschreibung zu get_microtime erstellt
-- Beschreibung zu strip erweitert
-- In allen Beschreibungen die Parameter entfernt, wozu braucht man die da?
-  Es gibt doch schließlich eine Doku ;-)
-- ASCII Flatbox Schrifzug am Anfang eingefügt
-- Konstanten PRINT_NOTICES, PRINT_WARNINGS und PRINT_FAILES eingeführt
-- Funktion get_error_description angepasst, sodass sich über die drei oben
-  genannten Konstanten die Ausgabe von Fehlermeldungen steuern lässt.
-- Alle Funktion sofern angepasst, dass diese nicht mehr direkt den Errorcode
-  zurück liefern, sondern dass der Errorcode erst durch get_error_description
-  gejagt wird und dann zurückgegeben wird. So lässt sich mit den obigen 
-  Konstanten die Fehlerausgabe aller Funktion kontrollieren.
+- Die Parameter $_userdata und $_rights für flat_rec_select werden bis jetzt
+  noch nicht gebraucht, weshalb ich sie optional gemacht habe.
+- In flat_file_backup noch eine Prüfung eingebaut, ob der Komprimierungsgrad
+  auch 1 bis 9 ist - ist er größer, wird nicht komprimiert
+- Noch mal flat_file_backup - der zweite Paramter mit dem Komprimierungsgrad
+  wurde erst in 4.2 eingeführt, deshalb noch eine Abfrage eingebaut, ob die
+  verwendete PHP Version >= 4.2 ist.
 
 */
 
@@ -111,7 +105,6 @@ Anzeigefunktionen:
 
 - flat_rec_make_detail                => Erzeugt die HTML Ausgabe für 
                                          einen angeforderten Datenksatz
-
 
 - flat_rec_search                     => Sucht je nach Auswahl im Archiv oder 
                                          aktuell.dat nach String
@@ -393,20 +386,20 @@ function flat_rec_insert($filepath,&$_recdata)
         !is_array($_file['data']))
     {
       fclose($fp);
-      return get_error_description(11);           ## Dateiformat passt nicht
+      return get_error_description(11);  ## Dateiformat passt nicht
     }
 
     if (!empty($_recdata['denied']) or !empty($_recdata['meta'])) 
     {
       fclose($fp);                       ## noch fehlerhafte Datensätze im Array
-      return get_error_description(12);                         ## oder noch Ergebnisdaten vorhanden 
+      return get_error_description(12);  ## oder noch Ergebnisdaten vorhanden 
     }
     $_recdata['meta']   = array();       ## es könnten ja noch leere Strings sein
     $_recdata['denied'] = array();
   }
      
-  $_recdata['meta']['rec_inserted'] = 0;  ## Anzahl der fehlerfrei updated Records
-  $_recdata['meta']['rec_denied']  = 0;   ## Anzahl der abgelehnten Records
+  $_recdata['meta']['rec_inserted'] = 0; ## Anzahl der fehlerfrei updated Records
+  $_recdata['meta']['rec_denied']  = 0;  ## Anzahl der abgelehnten Records
 
   foreach($_recdata['data'] as $key => $_record)
   {
@@ -420,7 +413,7 @@ function flat_rec_insert($filepath,&$_recdata)
     
       $_file['data'][$new_key] = $_record;   ## Daten übertragen
       $_file['data'][$new_key]['lastupdate'] = $time_s; ## Aktualisierungsdatum eintragen 
-      $_file['data'][$new_key]['created']   = $time_u; ## Erstelldatum eintragen
+      $_file['data'][$new_key]['created']   = $time_u;  ## Erstelldatum eintragen
       unset($_recdata['data'][$key]);        ## Record aus Auftragsliste löschen
     
       $_recdata['rec_inserted'][$key]['new_id'] = $new_key; ## Erteilter Schlüssel 
@@ -466,7 +459,7 @@ function flat_rec_insert($filepath,&$_recdata)
 }
 
 #--------------------------------------------------------------------
-function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
+function flat_rec_select($filepath,&$_recdata,$_userdata = false,$_rights = false)
 {
   //status-Buffer rücksetzen
   clearstatcache();
@@ -504,7 +497,7 @@ function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
         !isset($_file['meta']['amount']) or 
         !is_array($_file['data']))
     {
-      return get_error_description(11);           ## Dateiformat passt nicht
+      return get_error_description(11);      ## Dateiformat passt nicht
     }
   
      
@@ -516,7 +509,7 @@ function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
 
     foreach($_file['data'] as $key => $_record)
     {
-      if(isset($_record['rights']) and (false))           ## Einschränkende rechte vorhanden
+      if(isset($_record['rights']) and (false))          ## Einschränkende rechte vorhanden
       {
         $_recdata['meta']['rec_denied'] ++;              ## mangelnde Userrechte
       }
@@ -528,10 +521,8 @@ function flat_rec_select($filepath,&$_recdata,$_userdata,$_rights)
     }
     ksort($_recdata['data']);                            ## nach IDs sortieren
   }
-
-     
+  
   //Rückgabewert der Funktion
-
   if ($_recdata['meta']['rec_denied'] == 0)              ## alle Sätze erlaubt
   {
     return get_error_description(0);       # kein Fehler aufgetreten, alle Sätze verarbeitet.
@@ -989,13 +980,21 @@ function flat_file_backup($filepath,$backuppath,$compress=0)
   
   // wahlweise Komprimierung durchführen
   $compress = intval($compress);
-  if ($compress > 0)
+  if ($compress > 0 AND $compress < 10)
   {
     $backuppath .= '.cpr';
-    $_file_packed = gzencode($_file_packed,$compress);  ## gZIP erstellen
+    //Haben wir eine PHP Version >= 4.2? Denn der Komprimierungsgrad als
+	//zweiter Parameter für gzencode() wurde erst in PHP 4.2 eingeführt!
+	if(version_compare(phpversion(), "4.2", ">="))
+	{
+		$_file_packed = gzencode($_file_packed,$compress);  ## gZIP erstellen
+	}
+	else
+	{
+		$_file_packed = gzencode($_file_packed);            ## gZIP erstellen
+	}
   }
-    
-  if($compress == 0)
+  else
   {
     $backuppath .= '.abk';
   }

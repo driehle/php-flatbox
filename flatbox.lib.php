@@ -1,24 +1,37 @@
-<?php   
+<?php
 
 ######################################################################
 #/------------------------------------------------------------------\#
-#|           ____               _____   __    __                    |#
-#|           |__   |      /\      |    |  |  |  |  \ /              |#
-#|           |     |     /--\     |    |-{   |  |   X               |#
-#|           |     |__  /    \    |    |__|  |__|  / \              |#
+#|            ____               _____   __    __                   |#
+#|            |__   |      /\      |    |  |  |  |  \ /             |#
+#|            |     |     /--\     |    |-{   |  |   X              |#
+#|            |     |__  /    \    |    |__|  |__|  / \             |#
 #|                                                                  |#
 #\------------------------------------------------------------------/#
 ######################################################################
 
 
-### flat_box.php              ###
+### FlatBox - Verwalten von Datensätzen in FlatFiles (Textdateien) ###
 
-### Copyright:                ###
-### Thomas Schmieder          ###
-### Dennis Riehle             ###
+### Autoren:                                                       ###
+### ===============                                                ###
+### Thomas Schmieder  <tschmider@bitworks.de>                      ###
+### Dennis Riehle     <selfhtml@riehle-web.com>                    ###
 
-### Stand 13.07.2005 21:39:52 ###
-### Version 0.2.3             ###
+### Stand:    03.09.2005 20:53:13                                  ###
+### Version:  0.3.0                                                ###
+### Stable?   Beta                                                 ###
+
+
+######################################################################
+#/------------------------------------------------------------------\#
+#|                              Lizenz                              |#
+#\------------------------------------------------------------------/#
+######################################################################
+
+/*
+
+*/
 
 
 ######################################################################
@@ -28,16 +41,72 @@
 ######################################################################
 
 /*
-
-- Die Parameter $_userdata und $_rights für flat_rec_select werden bis jetzt
-  noch nicht gebraucht, weshalb ich sie optional gemacht habe.
-- In flat_file_backup noch eine Prüfung eingebaut, ob der Komprimierungsgrad
-  auch 1 bis 9 ist - ist er größer, wird nicht komprimiert
-- Noch mal flat_file_backup - der zweite Paramter mit dem Komprimierungsgrad
-  wurde erst in 4.2 eingeführt, deshalb noch eine Abfrage eingebaut, ob die
-  verwendete PHP Version >= 4.2 ist.
-
+- Funktion flat_rec_filter eingeführt, mit der sich aus der Rückgabe von
+  flat_rec_select bequem ein einzelner Datensatz oder ein Datensatzbereich
+  herrausfiltern lässt.
+- Mal an die Funktion flat_file_alter herangemacht, es ist jetzt möglich,
+  über alle Datensätze in einem Flatfile hinweg ein Feld zu löschen oder
+  ein Feld mit einem Default Wert anzulegen, optional dabei auch bereits
+  existierende zu überschreiben
+- Fehler in flat_rec_select korrigiert - da gabs bis jetzt immer noch eine
+  Fehlermeldung, wenn man einen File öffnen wollte, der _leer_ war, also
+  keine leeren Arrays drin, sondern eine Datei mit der Länge 0, fread be-
+  schwert sich nämlich, wenn es als Filesize 0 übergeben bekommt
+- flat_rec_insert, da gabs ne Notice Meldung wegen einem nicht angelegten
+  Array Index, außerdem musste auch hier noch wie bei flat_rec_select eine
+  Kontrolle eingebaut werden, ob der File leer ist
+- Errorcode 9 eingeführt: In die Datei können keine Datensätze eingetragen
+  werden, weil der Filetype nicht flatfile ist.
+  Gedenke ich für die Archivierung zu nutzen - wird meta['filetype'] auf
+  etwas anders als flatfile gesetzt, ist ein Eintragen mit flat_rec_insert
+  nicht mehr möglich, ein Archiv-File wäre somit geschützt, habe flat_rec_
+  insert und flat_file_create diesbezüglich angepasst.
+  Ist meta['filetype'] nicht vorhanden, so ist das auch OK, aus Gründen der
+  Abwärtskompilität
+- gleiches Problem wie bei flat_rec_select und bei flat_rec_insert existierte
+  auch noch bei flat_rec_update und flat_rec_delete - ist jetzt gefixed
+- flat_rec_search geschrieben, die Funktion kann bis jetzt wahlweise in
+  den Schlüsseln oder in den Werten der Datensätze suchen und das wahlweise
+  mit einem einfachen Vergleich oder mit einem regulären Ausdruck. Alle 
+  Datensätze in denen nichts gefunden wurde, werden entfernt
+- bei flat_rec_update wäre es bis jetzt noch möglich gewesen, [created] zu
+  überschreiben, ist aber nicht sinnvoll, geht jetzt nicht mehr
+- flat_rec_update hat bis jetzt Datensatze die noch nicht im Flatfile waren
+  neu eingefügt, abgesehen davon, dass da noch einiges nicht so ganz korrekt
+  war, ist das doch auch Schwachsinn - dazu soll der Programmierer doch bitte
+  flat_rec_insert benutzen, wir sind doch nicht dazu verpflichtet, den "Arsch
+  des faulen Programmierers zu retten" ;-)
+- bei flat_rec_get_listdata, flat_rec_make_list und flat_rec_make_detail den
+  ersten Parameter Filepath durch $_recdata ersetzt - das bläht den Quellcode
+  nur unnötig auf, wenn jede Funktion selber wieder noch andere Funktionen 
+  aufruft. Da ist es doch besser, wenn man einfach sich von flat_rec_select
+  $_recdata geben lässt und dass dann selber weiterreicht, so ersparen wir 
+  uns auch das Durchschleifen von $_userdata und $_rights
+- in flat_rec_make_detail kleinen Bug gefixet - da wurde auf eine nicht
+  existierende Variable zugegriffen, kleiner Schreibfehler
+- in flat_rec_make_detail war eine sinnlose foreach, dass ließ sich alles 
+  viel einacher lösen, weil man ja $dataID zur Verfügung hat - jetzt kann 
+  problemlos das komplette $_recdata übergeben werden.
+- Für unsere drei Konstanten fürs Error Reporting habe ich jetzt noch eine
+  Abfrage eingebaut, sodass diese nur dann definiert werden, sofern sie 
+  nicht schon definiert sind. Das hat den Vorteil, dass der Anweder die 
+  Konstanten  selber in seinem Script schon vor dem Includen der FlatBox 
+  setzten kann
+- Das BIOS (alle 4 Hauptfunktionen) mal durchgegangen und teilweise noch 
+  etwas  bereinigt, vereinfacht, Struktur optimiert, vereinheitlicht und 
+  weiter kommentiert
+- Die Beschreibungen der Funktionen unter dem Changelog hier aufs Nötigste
+  reduziert und einen Hinweis auf die Doku hinzugefügt
+- bei flat_rec_get_listdata hätte es noch ein kleines Problem gegeben, wenn
+  last bzw. nextID 0 gewesen wäre (sollte zwar nicht vorkommen) - ließ 
+  sich durch eine Typenprüfung lösen
+- von flat_rec_get_listdata nach flat_rec_make_list werden die Informationen
+  nextID, lastID und starID jetzt auch über meta in $_showdata weitergegeben
+- in flat_rec_make_list und flat_rec_make_detail werden HTML Elementen
+  (CSS) Klassen vergeben - da wir eigentlich überall engliche Begriffe 
+  verwenden, hab ich die Klassennamen mal auf entry und detailentry geändert
 */
+
 
 ######################################################################
 #/------------------------------------------------------------------\#
@@ -46,90 +115,90 @@
 ######################################################################
 
 /*
+Hinweis: Eine ausführliche Beschreibung der Funktionen, sowie eine 
+         Auflistung derer Parameter finden Sie in der Dokumentation zur
+         FlatBox.
 
 Dauerfunktionen:
 ================
-- get_error_description               => Liefert die Beschreibungen zu einem
-									     Fehler, je nach definierten Konstanten,
-										 werden diese ausgegeben oder nicht.
-
-- get_microtime                       => Diese Funktion liefert einen Timestamp
-										 zurück, der die aktuelle Zeit in Sekunden
-										 mit 4 Nachkommastellen angibt.
-										 Was in PHP5 durch microtime(true); erledigt
-										 werden kann, kann in PHP4 nur mit einem
-										 Workaround erzielt werden.
-
-- get_time_s                          => Liefert die aktuelle Zeit zurück, 
-                                         in einem speziallen Timestamp:
-										 JahrMonatTagStundeMinuteSekunde.Millisekunden
-
+- get_error_description               => Ist für die Ausgabe von Fehlermeldungen
+                                         verantwortlicht.
+- get_microtime                       => Besorgt einen Timestamp der aktuellen
+                                         Uhrzeit in Millisekunden
+- get_time_s                          => Liefert einen Spezial Timestamp in
+                                         Millisekunden zurück
 - strip                               => Rekursive Entfernung der 
-                                         Maskierungs-Backslashes in $data, sofern
-										 magic_quotes aktiviert sind
-
-- flat_open_lock				      => Öffnet $filename und nutzt als 
-                                         Sperrmethode $lockmode
-
+                                         Maskierungs-Backslashes, sofern
+                                         magic_quotes aktiviert sind
+- flat_open_lock				      => Öffnet und sperrt Dateien, existiert
+                                         die Datei nicht, wird sie angelegt
 
 Einmalige Funktionen:
 =====================
-- flat_file_create			          => Erstellt die Datei $filepath
-
+- flat_file_create			          => Legt einen FlatFile an und füllt ihn
+                                         mit den Meta Daten
 - flat_file_alter                     => Ändert die Dateien, wenn z.B. ein 
                                          Feld dazukommt
-
 
 Grundfunktionen (BIOS):
 =======================
 - flat_rec_insert                     => Schreibt einen neuen Datensatz in 
-                                         die angegebene Datei
-
-- flat_rec_select                     => holt eine Recordliste aus 
-                                         einem File
-
-- flat_rec_update                     => Erneuert Datensätze in $filepath 
-                                         oder fügt sie hinzu, wenn die ID noch
-                                         nicht vorhanden war.
-
-- flat_rec_delete					  => Löscht die Datensätze in $filename
-
+                                         eine Datei, bzw. legt eine Datei davor
+                                         auch an
+- flat_rec_select                     => holt eine Liste aller Datensätze
+                                         aus einem File
+- flat_rec_update                     => Aktualisiert Datensätze in einer Datei
+                                         nach lastupdate Vergleich
+- flat_rec_delete					  => Löscht Datensätze in einer Datei
 
 Anzeigefunktionen:
 ==================
 - flat_rec_get_listdata               => Besorgt alle notwendigen Daten für
                                          die HTML Ausgabe mit Blätterfunktion
-
 - flat_rec_make_list                  => Erzeugt die HTML Ausgabe für die 
                                          Anzeige mit Blätterfunktion
-
 - flat_rec_make_detail                => Erzeugt die HTML Ausgabe für 
                                          einen angeforderten Datenksatz
-
-- flat_rec_search                     => Sucht je nach Auswahl im Archiv oder 
-                                         aktuell.dat nach String
-
+- flat_rec_search                     => Sucht im übergebenen Array der Datensätze
+                                         nach bestimmtem Text, auch reguläre
+                                         Ausdrücke können angewandt werden
+- flat_rec_filter					  => Filtert Datensätze anhand ihrer ID
+                                         aus den Informationen von flat_rec_select
+                                         herraus
 
 Backup- und Archivierungsfunktionen:
 ====================================
 - flat_rec_copy                       => Kopiert eine bestimmte Menge an 
                                          Datensätzen, wird zur Archivierung genutzt
-
-- flat_file_backup                    => Erstellt ein Backup der
-                                         Datei $filepath am Ort $backuppath, 
-										 zusätzlich kann ein Komprimierungscode 
-										 angegeben werden.
-
+                                         -- nocht nicht geschrieben! --
+- flat_file_backup                    => Erstellt ein Backup von FlatFiles,
+                                         zusätzlich kann ein Komprimierungsgrad
+                                         angegeben werden.
 */
 
 
 #--------------------------------------------------------------------
 # includes und Konstanten
 #--------------------------------------------------------------------
+
+//Konstante für die maximale Größe eines Flatfiles
 define ('FLAT_MAXFILESIZE', 1000000);
-define ('PRINT_NOTICES',    true   );
-define ('PRINT_WARNINGS',   true   );
-define ('PRINT_FAILES',     true   );
+
+//Drei Konstanten für das Error Reporting
+//nur dann definieren, sofern diese nicht schon vorher durch den
+//Anwender definiert wurden
+if(!defined('PRINT_NOTICES'))
+{
+  define('PRINT_NOTICES', true);
+}
+if(!defined('PRINT_WARNINGS'))
+{
+  define('PRINT_WARNINGS', true);
+}
+if(!defined('PRINT_FAILES'))
+{
+  define('PRINT_FAILES', true);
+}
 
 
 #--------------------------------------------------------------------
@@ -148,6 +217,7 @@ function get_error_description($errnr, $returndescr = false)
    		 4 => "Low-Level Error: There are no data records, selected file is empty.",
    		 5 => "Low-Level Error: Authorisation Error on low-level section.",
    		 8 => "Low-Level Error: Flat Box wasn't able to write in the file.",
+		 9 => "Low-Level Error: Inserting into this file is not possible becaus filetype is not flatfile.",
 		10 => "Low-Level Error: Maximum allowable filesize is transgressed.",
 		11 => "Data Error: File format doesn't match.",
 		12 => "Data Error: Still erroneous data records in ['denied'].",
@@ -162,7 +232,7 @@ function get_error_description($errnr, $returndescr = false)
   //Wenn keine Error Nummer übergeben wurde, abbrechen
   if(!is_numeric($errnr)) return false;
   //Prüfen, ob es sich um eine existierende Notice-Meldung handelt
-  elseif($errnnr == 0 OR $errnr >= 100 AND isset($_notices[$errnr]))
+  elseif($errnr == 0 OR $errnr >= 100 AND isset($_notices[$errnr]))
   {
   	$message = $_notices[$errnr];
 	//Wenn entsprechend definiert, Meldung ausgeben
@@ -261,7 +331,7 @@ function strip($data)
 
 
 #--------------------------------------------------------------------
-function flat_open_lock($filepath,$lockmode)
+function flat_open_lock($filepath, $lockmode)
 {  
   # Lockdatei öffnen oder anlegen
   for ($x=0;$x<5;$x++)
@@ -315,6 +385,7 @@ function flat_file_create($filepath)
    $_file['meta']['lastupdate'] = $time_s;      ## letztes Write   
    $_file['meta']['lastid']     = 0;
    $_file['meta']['amount']     = 0;
+   $_file['meta']['filetype']   = "flatfile";
    
    $_file_packed = serialize($_file);
    fseek($fp,0);
@@ -327,17 +398,96 @@ function flat_file_create($filepath)
 }
 
 #--------------------------------------------------------------------
-function flat_file_alter()
+function flat_file_alter($filepath, $action, $fieldname, $value = "", $overwrite = false)
 {
+  //status-Buffer rücksetzen
+  clearstatcache();
   
+  //Datei öffnen und locken, bei Fehler abrechen
+  $fp = flat_open_lock($filepath,LOCK_EX);  
   
+  if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
+  
+  //Zeitstempel erzeugen und merken
+  $time_s = get_time_s();
+  $time_u = time();
+  
+  //Dateigröße feststellen
+  $filesize = filesize($filepath);
+  //maximale Dateigröße prüfen
+  if($filesize > FLAT_MAXFILESIZE + 5000)
+  {
+    fclose($fp);
+    return get_error_description(10);  ## max. zulässige Dateigröße überschritten
+  }
+  //ist in der Datei überhaupt etwas drin?
+  elseif($filesize == 0)
+  {
+  	fclose($fp);
+	return get_error_description(4);   ## File ist leer
+  }
+  
+  //Datei entpacken
+  fseek($fp,0,SEEK_SET);
+  $_file_packed = fread($fp,$filesize);
+  $_file = unserialize($_file_packed);
+  
+  //abbrechen, falls $_file leer ist
+  if(empty($_file))
+  {
+    return get_error_description(4);
+  }
+  //Dateiformat prüfen
+  elseif(!isset($_file['meta']['created']) or
+        !isset($_file['meta']['lastupdate']) or 
+        !isset($_file['meta']['lastid']) or
+        !isset($_file['meta']['amount']) or 
+        !is_array($_file['data']))
+  {
+    return get_error_description(11);      ## Dateiformat passt nicht
+  }
+  //Alle Datensätze bearbeiten
+  foreach($_file['data'] as $key => $_record)
+  {
+	if($action == "remove" and isset($_record[$fieldname]))
+	{
+	  unset($_file['data'][$key][$fieldname]);
+	  $_file['data'][$key]['lastupdate'] = $time_s;
+	}
+	elseif($action == "add")
+	{
+	  if(!isset($_record[$fieldname]) or $overwrite)
+	  {
+	    $_file['data'][$key][$fieldname] = $value;
+		$_file['data'][$key]['lastupdate'] = $time_s;
+	  }
+	}
+  }
+  
+  //letzte Veränderung eintragen 
+  $_file['meta']['lastupdate'] = $time_s;
+  
+  //Datei verpacken
+  $_file_packed = serialize($_file);
+     
+  //und abspeichern
+  fseek($fp,0);
+  ftruncate($fp,0);
+  $writeok = @fwrite($fp,$_file_packed,strlen($_file_packed));
+  
+  @fclose($fp);
+     
+  //Rückgabewert der Funktion
+  if (!$writeok) return get_error_description(8); # Fehler beim Schreiben;
+  
+  return get_error_description(0);       ## Kein Fehler aufgetreten
 }
 
 
 #--------------------------------------------------------------------
 # Grundfunktionen (BIOS)
 #--------------------------------------------------------------------
-function flat_rec_insert($filepath,&$_recdata)
+function flat_rec_insert($filepath, &$_recdata)
 {
   //status-Buffer rücksetzen
   clearstatcache();
@@ -353,12 +503,18 @@ function flat_rec_insert($filepath,&$_recdata)
     fclose($fp);
     return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
-       
-  //Datei entpacken
-  fseek($fp,0,SEEK_SET);
-  $_file_packed = fread($fp,$filesize);
-  $_file = unserialize($_file_packed);
-     
+  
+  //Wenn Daten vorhanden, diese entpacken
+  if($filesize > 0)
+  {
+    fseek($fp,0,SEEK_SET);
+    $_file_packed = fread($fp,$filesize);
+    $_file = unserialize($_file_packed);
+  }
+  else
+  {
+    $_file = array();
+  }
   
   //Zeitstempel erzeugen und merken
   $time_s = get_time_s();
@@ -375,6 +531,7 @@ function flat_rec_insert($filepath,&$_recdata)
     $_file['meta']['lastupdate'] = $time_s;       
     $_file['meta']['lastid'] = 0;
     $_file['meta']['amount'] = 0;
+	$_file['meta']['filetype'] = "flatfile";
   }
   else
   {
@@ -389,31 +546,43 @@ function flat_rec_insert($filepath,&$_recdata)
       return get_error_description(11);  ## Dateiformat passt nicht
     }
 
+	if (isset($_file['meta']['filetype']) AND     ## isset, wegen Abwärtskompatiblität
+	    $_file['meta']['filetype'] != "flatfile")
+	{
+	  return get_error_description(9);   ## Ist kein Flatfile, möglicherweise ein
+	                                     ## Archiv File
+    }
+	elseif (!isset($_file['meta']['filetype']))   ## existierte keine Angabe flatfile
+	{
+	  $_file['meta']['filetype'] = "flatfile";    ## so wird diese angelegt
+	}
+	
     if (!empty($_recdata['denied']) or !empty($_recdata['meta'])) 
     {
       fclose($fp);                       ## noch fehlerhafte Datensätze im Array
       return get_error_description(12);  ## oder noch Ergebnisdaten vorhanden 
     }
-    $_recdata['meta']   = array();       ## es könnten ja noch leere Strings sein
-    $_recdata['denied'] = array();
   }
-     
-  $_recdata['meta']['rec_inserted'] = 0; ## Anzahl der fehlerfrei updated Records
-  $_recdata['meta']['rec_denied']  = 0;  ## Anzahl der abgelehnten Records
+  
+  $_recdata['meta']                 = array(); ## es könnten ja noch leere Strings sein
+  $_recdata['meta']['rec_inserted'] = 0;       ## Anzahl der fehlerfrei updated Records
+  $_recdata['meta']['rec_denied']   = 0;       ## Anzahl der abgelehnten Records
+  $_recdata['denied']               = array(); ## Array f. abgelehnte Datensätze anlegen
+  $_recdata['rec_inserted']         = array(); ## Array f. eingefügte Datensätze anlegen
 
   foreach($_recdata['data'] as $key => $_record)
   {
     if(!empty($_record))
     { 
       $_recdata['meta']['rec_inserted'] ++; ## fehlerfrei eingefügten DS zählen
-      $_file['meta']['lastid'] ++;    
-      $_file['meta']['amount'] ++;            
+      $_file['meta']['lastid'] ++;
+      $_file['meta']['amount'] ++;
     
       $new_key = $_file['meta']['lastid'];
     
       $_file['data'][$new_key] = $_record;   ## Daten übertragen
       $_file['data'][$new_key]['lastupdate'] = $time_s; ## Aktualisierungsdatum eintragen 
-      $_file['data'][$new_key]['created']   = $time_u;  ## Erstelldatum eintragen
+      $_file['data'][$new_key]['created']    = $time_u;  ## Erstelldatum eintragen
       unset($_recdata['data'][$key]);        ## Record aus Auftragsliste löschen
     
       $_recdata['rec_inserted'][$key]['new_id'] = $new_key; ## Erteilter Schlüssel 
@@ -450,7 +619,7 @@ function flat_rec_insert($filepath,&$_recdata)
 
   if (count($_recdata['denied'])==0)
   {
-    return get_error_description(0);       # kein Fehler aufgetreten, alle Sätze verarbeitet.
+    return get_error_description(0);     # kein Fehler aufgetreten, alle Sätze verarbeitet.
   }
   else
   {
@@ -459,7 +628,7 @@ function flat_rec_insert($filepath,&$_recdata)
 }
 
 #--------------------------------------------------------------------
-function flat_rec_select($filepath,&$_recdata,$_userdata = false,$_rights = false)
+function flat_rec_select($filepath, &$_recdata, $_userdata = false, $_rights = false)
 {
   //status-Buffer rücksetzen
   clearstatcache();
@@ -467,24 +636,35 @@ function flat_rec_select($filepath,&$_recdata,$_userdata = false,$_rights = fals
   //Datei öffnen und locken, bei Fehler abrechen
   $fp = flat_open_lock($filepath,LOCK_SH);  
   
-  if (!$fp) return get_error_description(5);           ## Datei konnte nicht gesperrt werden
+  if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
-  // maximale Dateigröße prüfen
+  //Dateigröße feststellen
   $filesize = filesize($filepath);
-  if ($filesize > FLAT_MAXFILESIZE + 5000)
+  //maximale Dateigröße prüfen
+  if($filesize > FLAT_MAXFILESIZE + 5000)
   {
     fclose($fp);
     return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
-       
+  //ist in der Datei überhaupt etwas drin?
+  elseif($filesize == 0)
+  {
+  	fclose($fp);
+	return get_error_description(4);   ## File ist leer
+	                                   ## müssen wir hier schon abbrechen, weil sonst 
+									   ## fread und unserialize Fehler melden
+  }
   //Datei entpacken
-  fseek($fp,0,SEEK_SET);
-  $_file_packed = fread($fp,$filesize);
-  fclose($fp);       
-  $_file = unserialize($_file_packed);
+  else
+  {
+    fseek($fp,0,SEEK_SET);
+    $_file_packed = fread($fp,$filesize);
+    fclose($fp);       
+    $_file = unserialize($_file_packed);
+  }
   
-  //abbrechen, falls $_file leer ist
-  if(empty($_file) or ($filesize == 0))
+  //abbrechen, falls nur ein leeres Array im File sein sollte
+  if(empty($_file))
   {
     return get_error_description(4);
   }
@@ -534,7 +714,7 @@ function flat_rec_select($filepath,&$_recdata,$_userdata = false,$_rights = fals
 }
 
 #--------------------------------------------------------------------
-function flat_rec_update($filepath,&$_recdata)
+function flat_rec_update($filepath, &$_recdata)
 {
   //status-Buffer rücksetzen
   clearstatcache();
@@ -543,35 +723,36 @@ function flat_rec_update($filepath,&$_recdata)
   $fp = flat_open_lock($filepath,LOCK_EX);
   if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
-  // maximale Dateigröße prüfen
+  //Dateigröße feststellen
   $filesize = filesize($filepath);
-  if ($filesize > FLAT_MAXFILESIZE)
+  //maximale Dateigröße prüfen
+  if($filesize > FLAT_MAXFILESIZE + 5000)
   {
     fclose($fp);
     return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
-  
-  //Datei entpacken
-  fseek($fp,0,SEEK_SET);
-  $_file_packed = fread($fp,$filesize);
-  $_file = unserialize($_file_packed);
-     
+  //ist in der Datei überhaupt etwas drin?
+  elseif($filesize == 0)
+  {
+  	fclose($fp);
+	return get_error_description(4);   ## File ist leer
+  }
+  //Daten entpacken
+  else
+  {
+    fseek($fp,0,SEEK_SET);
+    $_file_packed = fread($fp,$filesize);
+    $_file = unserialize($_file_packed);
+  }
   
   //Zeitstempel erzeugen und merken
   $time_s = get_time_s();
   $time_u = time();
 
-  //$_file anlegen, falls nicht vorhanden
+  //abbrechen, falls nur ein leeres Array im File sein sollte
   if(empty($_file))
   {
-    $_file = array();
-    $_file['meta'] = array();
-    $_file['data'] = array();
-
-    $_file['meta']['created'] = $time_u;
-    $_file['meta']['lastupdate'] = $time_s;       
-    $_file['meta']['lastid'] = 0;
-    $_file['meta']['amount'] = 0;
+    return get_error_description(4);
   }
   else
   {
@@ -589,12 +770,11 @@ function flat_rec_update($filepath,&$_recdata)
     if (!empty($_recdata['denied']) or !empty($_recdata['meta'])) 
     {
       fclose($fp);                       ## noch fehlerhafte Datensätze im Array
-      return get_error_description(12);                         ## oder noch Ergebnisdaten vorhanden 
+      return get_error_description(12);  ## oder noch Ergebnisdaten vorhanden 
     }
-    $_recdata['meta']   = array();       ## es könnten ja noch leere Strings sein
-    $_recdata['denied'] = array();
   }
-     
+  
+  $_recdata['denied'] = array();
   $_recdata['meta']['rec_updated'] = 0;  ## Anzahl der fehlerfrei updated Records
   $_recdata['meta']['rec_denied']  = 0;  ## Anzahl der abgelehnten Records
 
@@ -604,9 +784,12 @@ function flat_rec_update($filepath,&$_recdata)
     {
       if ($_file['data'][$key]['lastupdate'] == $_record['lastupdate'])
       {
-        $_recdata['meta']['rec_updated'] ++;           ## fehlerfrei updated zählen
+        //Ein Manipulieren von [created] soll nicht möglich sein
+		unset($_recdata['data']['created']);
+		//Datensatz einfügen
+		$_recdata['meta']['rec_updated'] ++;           ## fehlerfrei updated zählen
         $_file['data'][$key] = $_record;               ## Daten übertragen
-        $_file['data'][$key]['lastupdate'] = $time_s;   ## Aktualisierungsdatum eintragen 
+        $_file['data'][$key]['lastupdate'] = $time_s;  ## Aktualisierungsdatum eintragen 
         unset($_recdata['data'][$key]);                ## Record aus Auftragsliste löschen
       }
       else
@@ -615,27 +798,15 @@ function flat_rec_update($filepath,&$_recdata)
         $_recdata['meta']['rec_denied'] ++;               ## "abgelehnt" zählen
       }
     }
-    else  ## Datensatz aus der Auftragsliste ist noch nicht im File
+    else  ## Datensatz aus der Auftragsliste ist nicht im File
     {
-      if ($key > $_file['meta']['lastid'])             ## wenn die ID aus der Auftragsliste
-      {                                                ## größer als die größte ID im File
-        $_file['meta']['lastid'] = $key;               ## ist, lastID erhöhen
-      }
-      
-      if (trim($_record['lastupdate']) == "")           ## record hat keinen Meinstamp
-      {
-        $_record['lastupdate'] = $time_s;               ## Aktualisierungsdatum eintragen 
-      }
-      
-      $_file['data'][$key] = $_record;                 ## Satz hinzufügen
-      $_file['meta']['amount'] ++;                     ## datensatz im File zählen
-      $_recdata['meta']['rec_updated'] ++;             ## erfolgreichen Auftrag zählen
-      unset($_recdata['data'][$key]);                  ## Record aus Auftragsliste löschen      
+      $_recdata['meta']['rec_denied'] ++;    ## "abgelehnt" hochzählen
+      $_recdata['denied'][$key] = $_record;  ## Datensatz in [denied] kopieren
     }
   }
 
-  //wenn Datensätze verändert oder eingefügt wurden
-  if ($_recdata['meta']['rec_updated'] >0)
+  //wenn Datensätze verändert wurden
+  if ($_recdata['meta']['rec_updated'] > 0)
   {
     // letzte Veränderung eintragen 
     $_file['meta']['lastupdate'] = $time_s;
@@ -652,22 +823,20 @@ function flat_rec_update($filepath,&$_recdata)
   @fclose($fp);
      
   //Rückgabewert der Funktion
-
   if (!$writeok) return get_error_description(8); # Fehler beim Schreiben;
 
-  if (count($_recdata['denied'])==0)
+  if (count($_recdata['denied']) == 0)
   {
-    return get_error_description(0);       # kein Fehler aufgetreten, alle Sätze verarbeitet.
+    return get_error_description(0);    ## kein Fehler aufgetreten, alle Sätze verarbeitet.
   }
   else
   {
-    return get_error_description(13);      # nicht alle Sätze konnten verarbeitet werden
+    return get_error_description(13);   ## nicht alle Sätze konnten verarbeitet werden
   }
 }
 
-
 #--------------------------------------------------------------------
-function flat_rec_delete($filepath,&$_recdata)
+function flat_rec_delete($filepath, &$_recdata)
 {
   //status-Buffer rücksetzen
   clearstatcache();
@@ -676,20 +845,27 @@ function flat_rec_delete($filepath,&$_recdata)
   $fp = flat_open_lock($filepath,LOCK_EX);
   if (!$fp) return get_error_description(5); ## Datei konnte nicht gesperrt werden
   
-  // maximale Dateigröße prüfen
+  //Dateigröße feststellen
   $filesize = filesize($filepath);
-  
-  // maximale Dateigröße zuzüglich Sicherheitszuschlag für LESEN
-  if ($filesize > FLAT_MAXFILESIZE + 5000)
-  {                             
+  //maximale Dateigröße prüfen
+  if($filesize > FLAT_MAXFILESIZE + 5000)
+  {
     fclose($fp);
     return get_error_description(10);  ## max. zulässige Dateigröße überschritten
   }
-    
-  //Datei entpacken
-  fseek($fp,0,SEEK_SET);
-  $_file_packed = fread($fp,$filesize);
-  $_file = unserialize($_file_packed);
+  //ist in der Datei überhaupt etwas drin?
+  elseif($filesize == 0)
+  {
+  	fclose($fp);
+	return get_error_description(4);   ## File ist leer
+  }
+  //Daten entpacken
+  else
+  {
+    fseek($fp,0,SEEK_SET);
+    $_file_packed = fread($fp,$filesize);
+    $_file = unserialize($_file_packed);
+  }
   
   //Zeitstempel erzeugen.
   $time_s = get_time_s();
@@ -717,11 +893,12 @@ function flat_rec_delete($filepath,&$_recdata)
       fclose($fp);
       return get_error_description(12);           ## noch fehlerhafte Datensätze im Array
     }                      ## oder noch falsche Ergbnisdaten
-    $_recdata['meta']   = array();
-    $_recdata['denied'] = array();
+    
     
   }
   
+  $_recdata['meta']   = array();
+  $_recdata['denied'] = array();
   $_recdata['meta']['rec_deleted'] = 0;  ## Anzahl der fehlerfrei gelöschten Records
   $_recdata['meta']['rec_denied']  = 0;  ## Anzahl der abgelehnten Records
 
@@ -783,23 +960,20 @@ function flat_rec_delete($filepath,&$_recdata)
 #--------------------------------------------------------------------
 # Anzeigefunktionen
 #--------------------------------------------------------------------
-function flat_rec_get_listdata($filepath,&$_showdata,&$nextID,&$lastID,$startID=false,$show=5,
-                              $_userdata=false,$_rights=false)
+function flat_rec_get_listdata(&$_recdata, &$_showdata, $startID = false, $show = 5)
 {
   //status-Buffer rücksetzen
   clearstatcache();
-  
-  //alle Daten einlesen
-  $ok = flat_rec_select($filepath,&$_recdata,$userdata=false,$_right=false);
-  
-  //und bei Fehler abbrechen
-  if($ok != 0) return $ok;
   
   if(!$startID) $startID = $_recdata['meta']['lastid'];
   
   //Der Zähler für bereits rüberkopierte Datensätze auf 0 setzen
   $count = 0;
   
+  //Default Wert für nächste ID festlegen
+  $nextID = false;
+  
+  //Next ID ermitteln
   for($ID = $startID; $ID >= 0; $ID--)
   {
     //Wenn der Datensatz vorhanden ist
@@ -824,12 +998,14 @@ function flat_rec_get_listdata($filepath,&$_showdata,&$nextID,&$lastID,$startID=
     //Wenn der Datensatz nicht vorhanden ist,
     //einfach weitermachen
   }
-  //Falls keine Datensätze gefunden wurden
-  if(empty($nextID)) $nextID = false;
   
-  //LastID ermitteln:
   //Den Zähler wieder auf null setzen
   $count = 0;
+  
+  //Default für lastID setzen
+  $lastID = false;
+  
+  //LastID ermitteln:
   for($ID = $startID; $ID <= $_recdata['meta']['lastid']; $ID++)
   {
     //Wenn der Datensatz vorhanden ist
@@ -849,14 +1025,16 @@ function flat_rec_get_listdata($filepath,&$_showdata,&$nextID,&$lastID,$startID=
     //einfach weitermachen
   }
   //Wenn die lastID noch nicht herrausgefunden wurde
-  if(empty($lastID))
+  if($lastID === false AND $startID != $_recdata['meta']['lastid'])
   {
-    //Auf false setzen wenn gleich der es keine vorherigen Einträge
-    //mehr gibt
-    if($startID == $_recdata['meta']['lastid']) $lastID = false;
-    //Oder ansonsten auf die höchste ID setzen
-    else $lastID = $_recdata['meta']['lastid'];
+    //lastID auf die höchste ID setzen
+    $lastID = $_recdata['meta']['lastid'];
   }
+  
+  //NextID, LastID und StartID in meta schreiben
+  $_showdata['meta']['nextID']  = $nextID;
+  $_showdata['meta']['lastID']  = $lastID;
+  $_showdata['meta']['startID'] = $startID;
   
   //Rückgabewert feststellen
   if(empty($_showdata)) return get_error_description(4); //Keine Daten vorhanden
@@ -864,78 +1042,180 @@ function flat_rec_get_listdata($filepath,&$_showdata,&$nextID,&$lastID,$startID=
 }
 
 #--------------------------------------------------------------------
-function flat_rec_make_list($filepath,$startID=false,$show=5,$_userdata=false,$_rights=false)
+function flat_rec_make_list(&$_showdata)
 {
   //status-Buffer rücksetzen
   clearstatcache();
   
-  $ok = flat_rec_get_listdata($filepath,$_showdata,$nextID,$lastID,$startID,$show,
-                                                         $_userdata=false,$_rights=false);
-  
-  //Bei Fehler abbrechen
-  if($ok != 0) return $ok;
-  
-  echo "<h2>Übersicht alles ausgewählten Records</h2>\n\n";
+  echo "<h2>Übersicht aller ausgewählten Records</h2>\n\n";
   foreach($_showdata['data'] as $id => $_record)
   {
-    echo "<div class=\"beitrag\">\n";
+    echo "<div class=\"entry\">\n";
     echo "Eintrags ID: $id<br>\n";
-	echo "<a href=\"".$_SERVER['PHP_SELF']."?detailID=".$id."&amp;backID=".$startID."\">Details</a><br>\n";
+	echo "<a class=\"detailslink\" href=\"" . $_SERVER['PHP_SELF'] . "?detailID=" . $id . "&amp;backID=";
+	echo intval($_showdata['meta']['startID']) . "\">Details ansehen</a><br>\n";
     echo "</div>\n\n";
   }
   
-  if($lastID != false) 
+  if($_showdata['meta']['lastID'] !== false) 
   {
-    echo "<a href=\"".$_SERVER['PHP_SELF']."?startID=".$lastID."\">Vorherige Einträge</a><br>\n";
+    echo "<a id=\"beforelink\" href=\"" . $_SERVER['PHP_SELF'] . "?startID=" . $_showdata['meta']['lastID'];
+	echo "\">Vorherige Einträge</a>\n";
   }
-  if($nextID != false)
+  if($_showdata['meta']['nextID'] !== false)
   {
-    echo "<a href=\"".$_SERVER['PHP_SELF']."?startID=".$nextID."\">Weitere Einträge</a><br>\n";
+    echo "<a id=\"nextlink\" href=\"" . $_SERVER['PHP_SELF'] . "?startID=" . $_showdata['meta']['nextID'];
+	echo "\">Weitere Einträge</a>\n";
   }
 }
 
 #--------------------------------------------------------------------
-function flat_rec_make_detail($filepath,$dataID,$backStartID = false)
+function flat_rec_make_detail(&$_recdata, $dataID, $backStartID = false)
 {
   //status-Buffer rücksetzen
   clearstatcache();
   
-  //Einen Datensatz holen
-  $ok = flat_rec_get_listdata($filepath,$_showdata,$nextID,$lastID,$dataID,$show = 1,
-                                                         $_userdata=false,$_rights=false);
-  
-  //Bei Fehler abbrechen
-  if($ok != 0) return $ok;
-  
-  //Es ist maximal ein Record im Array $_showdata['data']
-  foreach($_showdata['data'] as $id => $_record)
+  echo "<h3>Detailansicht eines Records</h3>\n";
+  echo "<div class=\"detailentry\">\n";
+  echo "<table cellpadding=2 cellspacing=2>\n";
+  foreach($_recdata['data'][$dataID] as $key => $value)
   {
-    echo "<h3>Detailansicht eines Records</h3>\n";
-	echo "<div class=\"beitrag\">\n";
-    echo "	<table cellpadding=2 cellspacing=2>\n";
-    foreach($_showdata['data'][$id] as $key => $value)
-    {
-      echo "	<tr>\n";
-      echo "		<td>".$key.":</td>\n";
-      echo "		<td>".$value."</td>\n";
-      echo "	</tr>\n";
-    }
-    echo "	</table>\n";
-    echo "</div>\n\n";
+    echo "<tr>\n";
+    echo "<td>" . $key . ":</td>\n";
+    echo "<td>" . $value . "</td>\n";
+    echo "</tr>\n";
   }
+  echo "</table>\n";
+  echo "</div>\n\n";
   
   //Wenn eine Zurück ID angegeben wurde, diese ausgeben
   if($backStartID)
   {
-    echo "<a href=\"".$_SERVER['PHP_SELF']."?startID=".$lastID."\">Zurück</a><br>\n";
+    echo "<a id=\"backlink\" href=\"" . $_SERVER['PHP_SELF'] . "?startID=";
+	echo $backStartID . "\">Zurück</a>\n";
   }
 }
 
 #--------------------------------------------------------------------
-function flat_rec_search()
+function flat_rec_search(&$_recdata, $term, $searchin = "value", $searchtype = "simple")
 {
-  
-  
+  //Dateiformat überprüfen
+  if (!is_array($_recdata) or
+      !is_array($_recdata['data']))
+  {
+    return get_error_description(11);    ## Dateiformat passt nicht
+  }
+  //Überhaupt Datensätze vorhanden?
+  if (empty($_recdata))
+  {
+    return get_error_description(14);    ## Format ok, aber keine Datensätze
+  }
+  //Soll in den Schlüsseln gesucht werden?
+  if($searchin == "key")
+  {
+    //Alle Datensätze durchgehen
+	foreach($_recdata['data'] as $id => $_record)
+	{
+	  //Schalter, ob etwas gefunden wurde
+	  $found = false;
+	  //Alle Datensätze durchgehen
+	  foreach($_record as $key => $value)
+	  {
+	    //Aufwendige Suche?
+		if($searchtype == "preg")
+		{
+		  //Wenn was gefunden, Schalter auf true setzen
+		  if(preg_match($term, $key)) $found = true;
+		}
+		//Sonst einfache Suche
+		else
+	    {
+		  //Wenn was gefunden, Schalter auf true setzen
+	      if($key == $term) $found = true;
+	    }
+	  }
+	  //Wenn nichts gefunden wurde, Datensatz entfernen
+	  if($found == false)
+	  {
+	    unset($_recdata['data'][$id]);
+	  }
+	}
+  }
+  //Ansonsten suchen wir in den Werten
+  else //$searchin == "value"
+  {
+    //Alle Datensätze durchgehen
+    foreach($_recdata['data'] as $id => $_record)
+	{
+	  //Schalter, ob etwas gefunden wurde
+	  $found = false;
+	  //Alle Datensätze durchgehen
+	  foreach($_record as $key => $value)
+	  {
+	    //Handelt es sich um ein Unter-Array?
+		//Das können wir bis jetzt noch nicht durchsuchen
+		if(is_array($value)) continue;
+		//Aufwendige Suche?
+		if($searchtype == "preg")
+		{
+		  //Wenn was gefunden, Schalter auf true setzen
+		  if(preg_match($term, $value)) $found = true;
+		}
+		else
+	    {
+		  //Wenn was gefunden, Schalter auf true setzen
+	      if($value == $term) $found = true;
+	    }
+	  }
+	  //Wenn nichts gefunden wurde, Datensatz entfernen
+	  if($found == false)
+	  {
+	    unset($_recdata['data'][$id]);
+	  }
+	}
+  }
+  return get_error_description(0);  ## Kein Fehler aufgetreten
+}
+
+#--------------------------------------------------------------------
+function flat_rec_filter(&$_recdata, $startID, $stopID = false)
+{
+  //Dateiformat überprüfen
+  if (!is_array($_recdata) or
+      !is_array($_recdata['data']))
+  {
+    return get_error_description(11);    ## Dateiformat passt nicht
+  }
+  //Überhaupt Datensätze vorhanden?
+  if (empty($_recdata))
+  {
+    return get_error_description(14);    ## Format ok, aber keine Datensätze
+  }
+  //Wenn nur ein Datensatz herrausgefiltert werden soll
+  if($stopID === false)
+  {
+    foreach($_recdata as $key => $_record)
+	{
+	  //Alle nicht passenden Datensätze rauslöschen
+	  if($key != $startID)
+	  {
+	    unset($_recdata[$key]);
+	  }
+	}
+  }
+  //Wenn ein Bereich an Datensätzen herrausgefiltert werden soll
+  else
+  {
+    foreach($_recdata as $key => $_record)
+	{
+	  //Alle nicht in diesem Bereich liegenden Datensätze löschen
+	  if($key < $startID OR $key > $stopID)
+	  {
+	    unset($_recdata[$key]);
+	  }
+	}
+  }
+  return get_error_description(0);    ## Keine Fehler aufgetreten
 }
 
 
@@ -949,7 +1229,7 @@ function flat_rec_copy()
 }
 
 #--------------------------------------------------------------------
-function flat_file_backup($filepath,$backuppath,$compress=0)
+function flat_file_backup($filepath, $backuppath, $compress = 0)
 {
   //status-Buffer rücksetzen
   clearstatcache();
@@ -1017,6 +1297,11 @@ function flat_file_backup($filepath,$backuppath,$compress=0)
   return get_error_description(0);  ## Kein Fehler aufgetreten
 }
 
-#--------------------------------------------------------------------
 
-### EOF ###
+######################################################################
+#/------------------------------------------------------------------\#
+#|                           End of File                            |#
+#\------------------------------------------------------------------/#
+######################################################################
+
+?>

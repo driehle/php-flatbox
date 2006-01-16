@@ -18,8 +18,8 @@
 ### Thomas Schmieder  <tschmider@bitworks.de>                      ###
 ### Dennis Riehle     <selfhtml@riehle-web.com>                    ###
 
-### Stand:    03.09.2005 20:53:13                                  ###
-### Version:  0.3.0                                                ###
+### Stand:    17.01.2006 17:12:51                                  ###
+### Version:  0.3.1                                                ###
 ### Stable?   Beta                                                 ###
 
 
@@ -41,70 +41,11 @@
 ######################################################################
 
 /*
-- Funktion flat_rec_filter eingeführt, mit der sich aus der Rückgabe von
-  flat_rec_select bequem ein einzelner Datensatz oder ein Datensatzbereich
-  herrausfiltern lässt.
-- Mal an die Funktion flat_file_alter herangemacht, es ist jetzt möglich,
-  über alle Datensätze in einem Flatfile hinweg ein Feld zu löschen oder
-  ein Feld mit einem Default Wert anzulegen, optional dabei auch bereits
-  existierende zu überschreiben
-- Fehler in flat_rec_select korrigiert - da gabs bis jetzt immer noch eine
-  Fehlermeldung, wenn man einen File öffnen wollte, der _leer_ war, also
-  keine leeren Arrays drin, sondern eine Datei mit der Länge 0, fread be-
-  schwert sich nämlich, wenn es als Filesize 0 übergeben bekommt
-- flat_rec_insert, da gabs ne Notice Meldung wegen einem nicht angelegten
-  Array Index, außerdem musste auch hier noch wie bei flat_rec_select eine
-  Kontrolle eingebaut werden, ob der File leer ist
-- Errorcode 9 eingeführt: In die Datei können keine Datensätze eingetragen
-  werden, weil der Filetype nicht flatfile ist.
-  Gedenke ich für die Archivierung zu nutzen - wird meta['filetype'] auf
-  etwas anders als flatfile gesetzt, ist ein Eintragen mit flat_rec_insert
-  nicht mehr möglich, ein Archiv-File wäre somit geschützt, habe flat_rec_
-  insert und flat_file_create diesbezüglich angepasst.
-  Ist meta['filetype'] nicht vorhanden, so ist das auch OK, aus Gründen der
-  Abwärtskompilität
-- gleiches Problem wie bei flat_rec_select und bei flat_rec_insert existierte
-  auch noch bei flat_rec_update und flat_rec_delete - ist jetzt gefixed
-- flat_rec_search geschrieben, die Funktion kann bis jetzt wahlweise in
-  den Schlüsseln oder in den Werten der Datensätze suchen und das wahlweise
-  mit einem einfachen Vergleich oder mit einem regulären Ausdruck. Alle 
-  Datensätze in denen nichts gefunden wurde, werden entfernt
-- bei flat_rec_update wäre es bis jetzt noch möglich gewesen, [created] zu
-  überschreiben, ist aber nicht sinnvoll, geht jetzt nicht mehr
-- flat_rec_update hat bis jetzt Datensatze die noch nicht im Flatfile waren
-  neu eingefügt, abgesehen davon, dass da noch einiges nicht so ganz korrekt
-  war, ist das doch auch Schwachsinn - dazu soll der Programmierer doch bitte
-  flat_rec_insert benutzen, wir sind doch nicht dazu verpflichtet, den "Arsch
-  des faulen Programmierers zu retten" ;-)
-- bei flat_rec_get_listdata, flat_rec_make_list und flat_rec_make_detail den
-  ersten Parameter Filepath durch $_recdata ersetzt - das bläht den Quellcode
-  nur unnötig auf, wenn jede Funktion selber wieder noch andere Funktionen 
-  aufruft. Da ist es doch besser, wenn man einfach sich von flat_rec_select
-  $_recdata geben lässt und dass dann selber weiterreicht, so ersparen wir 
-  uns auch das Durchschleifen von $_userdata und $_rights
-- in flat_rec_make_detail kleinen Bug gefixet - da wurde auf eine nicht
-  existierende Variable zugegriffen, kleiner Schreibfehler
-- in flat_rec_make_detail war eine sinnlose foreach, dass ließ sich alles 
-  viel einacher lösen, weil man ja $dataID zur Verfügung hat - jetzt kann 
-  problemlos das komplette $_recdata übergeben werden.
-- Für unsere drei Konstanten fürs Error Reporting habe ich jetzt noch eine
-  Abfrage eingebaut, sodass diese nur dann definiert werden, sofern sie 
-  nicht schon definiert sind. Das hat den Vorteil, dass der Anweder die 
-  Konstanten  selber in seinem Script schon vor dem Includen der FlatBox 
-  setzten kann
-- Das BIOS (alle 4 Hauptfunktionen) mal durchgegangen und teilweise noch 
-  etwas  bereinigt, vereinfacht, Struktur optimiert, vereinheitlicht und 
-  weiter kommentiert
-- Die Beschreibungen der Funktionen unter dem Changelog hier aufs Nötigste
-  reduziert und einen Hinweis auf die Doku hinzugefügt
-- bei flat_rec_get_listdata hätte es noch ein kleines Problem gegeben, wenn
-  last bzw. nextID 0 gewesen wäre (sollte zwar nicht vorkommen) - ließ 
-  sich durch eine Typenprüfung lösen
-- von flat_rec_get_listdata nach flat_rec_make_list werden die Informationen
-  nextID, lastID und starID jetzt auch über meta in $_showdata weitergegeben
-- in flat_rec_make_list und flat_rec_make_detail werden HTML Elementen
-  (CSS) Klassen vergeben - da wir eigentlich überall engliche Begriffe 
-  verwenden, hab ich die Klassennamen mal auf entry und detailentry geändert
+- Die Funktionen flat_array_read() und flat_array_write() eingeführt,
+  schließlich handelt es bei dem (Un-) Serialisieren um einen immer
+  wiederkehrenden Prozess, deshalb sind da eigene Funktionen angebracht.
+  Das Zurückgreifen auf diese Funktionen innerhalb aller anderen
+  Prozeduren ist für 0.3.2 geplant.
 */
 
 
@@ -130,12 +71,16 @@ Dauerfunktionen:
 - strip                               => Rekursive Entfernung der 
                                          Maskierungs-Backslashes, sofern
                                          magic_quotes aktiviert sind
-- flat_open_lock				      => Öffnet und sperrt Dateien, existiert
+- flat_open_lock				              => Öffnet und sperrt Dateien, existiert
                                          die Datei nicht, wird sie angelegt
+- flat_array_read                     => Liest serialisierte Daten aus einem
+                                         File
+- flat_array_write                    => Schreibt ein Array als serialisierte
+                                         Daten in einen File
 
 Einmalige Funktionen:
 =====================
-- flat_file_create			          => Legt einen FlatFile an und füllt ihn
+- flat_file_create			              => Legt einen FlatFile an und füllt ihn
                                          mit den Meta Daten
 - flat_file_alter                     => Ändert die Dateien, wenn z.B. ein 
                                          Feld dazukommt
@@ -149,7 +94,7 @@ Grundfunktionen (BIOS):
                                          aus einem File
 - flat_rec_update                     => Aktualisiert Datensätze in einer Datei
                                          nach lastupdate Vergleich
-- flat_rec_delete					  => Löscht Datensätze in einer Datei
+- flat_rec_delete					            => Löscht Datensätze in einer Datei
 
 Anzeigefunktionen:
 ==================
@@ -162,7 +107,7 @@ Anzeigefunktionen:
 - flat_rec_search                     => Sucht im übergebenen Array der Datensätze
                                          nach bestimmtem Text, auch reguläre
                                          Ausdrücke können angewandt werden
-- flat_rec_filter					  => Filtert Datensätze anhand ihrer ID
+- flat_rec_filter					            => Filtert Datensätze anhand ihrer ID
                                          aus den Informationen von flat_rec_select
                                          herraus
 
@@ -329,7 +274,6 @@ function strip($data)
   return $data;
 }
 
-
 #--------------------------------------------------------------------
 function flat_open_lock($filepath, $lockmode)
 {  
@@ -351,6 +295,39 @@ function flat_open_lock($filepath, $lockmode)
   
   fclose($lh);
   return false;
+}
+
+#--------------------------------------------------------------------
+function flat_array_read($fp)
+{
+  fseek($fp,0,SEEK_SET);
+  $_file_packed = fread($fp,$filesize);
+  if($_file_packed)
+  {
+    $_file = unserialize($_file_packed);
+    return $_file;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+#--------------------------------------------------------------------
+function flat_array_write($fp, $array)
+{
+  $_file_packed = serialize($array);
+  fseek($fp,0);
+  ftruncate($fp, 0);
+  $writeok = fwrite($fp,$_file_packed,strlen($_file_packed));
+  if($writeok)
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 
